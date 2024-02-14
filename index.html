@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+	</head>
+	<body>
+		<script>
+			let [min, max] = [0, 100];
+			let hiddenNumber = Math.floor(Math.random() * max) + min;
+			let lastInput;
+			let input;
+
+			while (input != hiddenNumber) {
+				input = prompt(`Pilih angka di antara ${min} dan ${max}`);
+
+				if (
+					(Number.isInteger(parseFloat(input)) &&
+						input > min &&
+						input < max) ||
+					input == undefined
+				) {
+					if (input < hiddenNumber) min = input;
+					if (input > hiddenNumber) max = input;
+					lastInput = input;
+				} else {
+					input = lastInput;
+					window.alert("Input tidak valid");
+				}
+			}
+
+			window.alert(`💣💣💣 Angka bom adalah ${hiddenNumber} 💣💣💣`);
+		</script>
+	</body>
+</html>
