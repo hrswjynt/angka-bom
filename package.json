@@ -4,11 +4,14 @@
   "description": "A number guessing game with modern UI and features",
   "main": "index.html",
   "scripts": {
-    "dev": "npx http-server . -p 3000 -c-1",
-    "start": "npx http-server . -p 3000 -c-1"
+    "dev": "node server.js",
+    "start": "node server.js"
   },
   "keywords": ["game", "guessing", "number"],
   "author": "",
   "license": "ISC",
-  "devDependencies": {}
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
 }

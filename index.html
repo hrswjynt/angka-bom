@@ -117,6 +117,9 @@
 					<button onclick="startGame('hard')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
 						🔴 Sulit (0-200)
 					</button>
+					<button onclick="showLeaderboard()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
+						🏆 Leaderboard
+					</button>
 				</div>
 
 				<div id="statsDisplay" class="bg-slate-700 rounded-lg p-4 text-center">
@@ -228,6 +231,18 @@
 					</div>
 				</div>
 
+				<!-- Submit to Leaderboard -->
+				<div class="bg-slate-700 rounded-lg p-4 mb-6">
+					<p class="text-slate-300 text-sm mb-3 text-center">Kirim skor ke leaderboard global?</p>
+					<div class="flex gap-2">
+						<input type="text" id="playerNameInput" placeholder="Nama pemain..." maxlength="20" class="flex-1 bg-slate-600 border border-slate-500 text-white placeholder-slate-400 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 transition text-sm" />
+						<button onclick="submitToLeaderboard()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition text-sm">
+							Kirim
+						</button>
+					</div>
+					<p class="text-slate-500 text-xs mt-2">atau lewati untuk bermain lagi</p>
+				</div>
+
 				<!-- Action Buttons -->
 				<div class="space-y-3">
 					<button onclick="startGame(currentDifficulty)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
@@ -235,6 +250,55 @@
 					</button>
 					<button onclick="goHome()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition">
 						Home
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Leaderboard Screen -->
+		<div id="leaderboardScreen" class="w-full max-w-2xl hidden slide-in">
+			<div class="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-8 shadow-2xl border border-slate-700">
+				<div class="text-center mb-8">
+					<div class="text-6xl mb-4">🏆</div>
+					<h1 class="text-4xl font-bold gradient-text mb-2">Global Leaderboard</h1>
+					<p class="text-slate-400">Pesaing terbaik dari seluruh dunia</p>
+				</div>
+
+				<!-- Difficulty Filter -->
+				<div class="flex gap-2 mb-6 justify-center flex-wrap">
+					<button onclick="loadLeaderboard('all')" class="px-4 py-2 rounded-lg font-semibold transition transform hover:scale-105 active:scale-95 bg-slate-700 hover:bg-slate-600 text-slate-100" id="filterAll">
+						Semua
+					</button>
+					<button onclick="loadLeaderboard('easy')" class="px-4 py-2 rounded-lg font-semibold transition transform hover:scale-105 active:scale-95 bg-slate-700 hover:bg-slate-600 text-slate-100" id="filterEasy">
+						🟢 Mudah
+					</button>
+					<button onclick="loadLeaderboard('medium')" class="px-4 py-2 rounded-lg font-semibold transition transform hover:scale-105 active:scale-95 bg-slate-700 hover:bg-slate-600 text-slate-100" id="filterMedium">
+						🟡 Sedang
+					</button>
+					<button onclick="loadLeaderboard('hard')" class="px-4 py-2 rounded-lg font-semibold transition transform hover:scale-105 active:scale-95 bg-slate-700 hover:bg-slate-600 text-slate-100" id="filterHard">
+						🔴 Sulit
+					</button>
+				</div>
+
+				<!-- Leaderboard List -->
+				<div id="leaderboardList" class="space-y-2 mb-6 max-h-96 overflow-y-auto">
+					<div class="text-center text-slate-400 py-8">
+						<p>Memuat leaderboard...</p>
+					</div>
+				</div>
+
+				<!-- Sync Status -->
+				<div id="syncStatus" class="text-center text-sm text-slate-400 mb-6">
+					<p id="syncMessage">Sinkronisasi otomatis diaktifkan</p>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="space-y-3">
+					<button onclick="loadLeaderboard(currentLeaderboardFilter)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+						🔄 Segarkan
+					</button>
+					<button onclick="goHome()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition">
+						Kembali ke Home
 					</button>
 				</div>
 			</div>
@@ -255,9 +319,17 @@
 		};
 
 		let currentDifficulty = 'medium';
+		let currentLeaderboardFilter = 'all';
 		let stats = {
 			totalGames: 0,
 			bestScore: null
+		};
+		let leaderboardCache = {
+			all: [],
+			easy: [],
+			medium: [],
+			hard: [],
+			lastSync: 0
 		};
 
 		// Load stats from localStorage
@@ -493,8 +565,165 @@
 			document.getElementById(screenId).classList.remove('hidden');
 		}
 
+		// Leaderboard Functions
+		async function loadLeaderboard(filter = 'all') {
+			currentLeaderboardFilter = filter;
+			const listContainer = document.getElementById('leaderboardList');
+			listContainer.innerHTML = '<div class="text-center text-slate-400 py-8"><p>Memuat leaderboard...</p></div>';
+
+			try {
+				let url = '/api/leaderboard';
+				if (filter !== 'all') {
+					url += '/' + filter;
+				}
+
+				const response = await fetch(url);
+				const data = await response.json();
+				
+				// Cache the data
+				if (filter === 'all') {
+					leaderboardCache.all = data.scores;
+				} else {
+					leaderboardCache[filter] = data.scores;
+				}
+				leaderboardCache.lastSync = Date.now();
+				saveLeaderboardCache();
+
+				displayLeaderboard(data.scores);
+				updateSyncStatus('Sinkronisasi berhasil');
+			} catch (error) {
+				console.error('Error loading leaderboard:', error);
+				loadLeaderboardFromCache(filter);
+				updateSyncStatus('Offline - menampilkan dari cache lokal');
+			}
+
+			// Update filter buttons
+			document.querySelectorAll('[id^="filter"]').forEach(btn => {
+				btn.classList.remove('bg-blue-600');
+				btn.classList.add('bg-slate-700', 'hover:bg-slate-600');
+			});
+
+			const filterBtn = document.getElementById('filter' + (filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)));
+			if (filterBtn) {
+				filterBtn.classList.remove('bg-slate-700', 'hover:bg-slate-600');
+				filterBtn.classList.add('bg-blue-600');
+			}
+		}
+
+		function displayLeaderboard(scores) {
+			const listContainer = document.getElementById('leaderboardList');
+
+			if (scores.length === 0) {
+				listContainer.innerHTML = '<div class="text-center text-slate-400 py-8"><p>Belum ada skor di leaderboard</p></div>';
+				return;
+			}
+
+			let html = '';
+			scores.forEach((score, index) => {
+				const rank = index + 1;
+				let medal = '   ';
+				if (rank === 1) medal = '🥇';
+				else if (rank === 2) medal = '🥈';
+				else if (rank === 3) medal = '🥉';
+
+				const diffEmoji = {
+					easy: '🟢',
+					medium: '🟡',
+					hard: '🔴'
+				}[score.difficulty] || '⭕';
+
+				const date = new Date(score.timestamp);
+				const timeStr = date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
+
+				html += `
+					<div class="bg-slate-700 rounded-lg p-4 hover:bg-slate-600 transition fade-in">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-4">
+								<span class="text-2xl font-bold text-slate-400 w-8">${medal}</span>
+								<div>
+									<p class="font-bold text-slate-100">#${rank} ${score.playerName}</p>
+									<p class="text-sm text-slate-400">${diffEmoji} ${score.difficulty.charAt(0).toUpperCase() + score.difficulty.slice(1)} • ${timeStr}</p>
+								</div>
+							</div>
+							<div class="text-right">
+								<p class="text-2xl font-bold gradient-text">${score.attempts}</p>
+								<p class="text-xs text-slate-400">percobaan</p>
+							</div>
+						</div>
+					</div>
+				`;
+			});
+
+			listContainer.innerHTML = html;
+		}
+
+		function loadLeaderboardFromCache(filter) {
+			const scores = filter === 'all' ? leaderboardCache.all : leaderboardCache[filter];
+			displayLeaderboard(scores);
+		}
+
+		function saveLeaderboardCache() {
+			localStorage.setItem('leaderboardCache', JSON.stringify(leaderboardCache));
+		}
+
+		function loadLeaderboardCache() {
+			const cached = localStorage.getItem('leaderboardCache');
+			if (cached) {
+				leaderboardCache = JSON.parse(cached);
+			}
+		}
+
+		function updateSyncStatus(message) {
+			document.getElementById('syncMessage').textContent = message;
+		}
+
+		async function submitToLeaderboard() {
+			const playerName = document.getElementById('playerNameInput').value.trim();
+
+			if (!playerName) {
+				alert('Masukkan nama pemain terlebih dahulu!');
+				return;
+			}
+
+			try {
+				const response = await fetch('/api/leaderboard', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						playerName: playerName,
+						difficulty: gameState.difficulty,
+						attempts: gameState.attempts,
+						number: gameState.hiddenNumber
+					})
+				});
+
+				if (response.ok) {
+					const result = await response.json();
+					alert(`✅ Skor Anda telah dikirim ke leaderboard global!`);
+					document.getElementById('playerNameInput').value = '';
+					
+					// Invalidate cache to refresh next time
+					leaderboardCache.lastSync = 0;
+				} else {
+					throw new Error('Failed to submit score');
+				}
+			} catch (error) {
+				console.error('Error submitting score:', error);
+				alert('❌ Gagal mengirim skor. Cek koneksi internet Anda.');
+			}
+		}
+
+		function showLeaderboard() {
+			loadLeaderboardCache();
+			showScreen('leaderboardScreen');
+			loadLeaderboard('all');
+		}
+
 		// Initialize
 		loadStats();
+		loadLeaderboardCache();
 		showScreen('welcomeScreen');
 	</script>
 </body>
