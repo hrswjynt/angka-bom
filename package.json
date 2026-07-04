@@ -1,0 +1,14 @@
+{
+  "name": "angka-bom",
+  "version": "1.0.0",
+  "description": "A number guessing game with modern UI and features",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server . -p 3000 -c-1",
+    "start": "npx http-server . -p 3000 -c-1"
+  },
+  "keywords": ["game", "guessing", "number"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {}
+}
