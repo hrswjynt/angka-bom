@@ -1,36 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Document</title>
-	</head>
-	<body>
-		<script>
-			let [min, max] = [0, 100];
-			let hiddenNumber = Math.floor(Math.random() * max) + min;
-			let lastInput;
-			let input;
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Angka Bom - Number Guessing Game</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
-			while (input != hiddenNumber) {
-				input = prompt(`Pilih angka di antara ${min} dan ${max}`);
+		* {
+			font-family: 'Poppins', sans-serif;
+		}
 
-				if (
-					(Number.isInteger(parseFloat(input)) &&
-						input > min &&
-						input < max) ||
-					input == undefined
-				) {
-					if (input < hiddenNumber) min = input;
-					if (input > hiddenNumber) max = input;
-					lastInput = input;
-				} else {
-					input = lastInput;
-					window.alert("Input tidak valid");
-				}
+		.pulse-ring {
+			animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+		}
+
+		@keyframes pulse-ring {
+			0%, 100% {
+				box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+			}
+			50% {
+				box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+			}
+		}
+
+		.shake {
+			animation: shake 0.5s cubic-bezier(0.36, 0, 0.66, 1) both;
+		}
+
+		@keyframes shake {
+			0%, 100% { transform: translateX(0); }
+			10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+			20%, 40%, 60%, 80% { transform: translateX(3px); }
+		}
+
+		.slide-in {
+			animation: slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+		}
+
+		@keyframes slide-in {
+			from {
+				opacity: 0;
+				transform: translateY(20px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.fade-in {
+			animation: fade-in 0.3s ease-in-out;
+		}
+
+		@keyframes fade-in {
+			from { opacity: 0; }
+			to { opacity: 1; }
+		}
+
+		.gradient-text {
+			background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+
+		button:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+
+		input[type="number"]::-webkit-outer-spin-button,
+		input[type="number"]::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+
+		input[type="number"] {
+			-moz-appearance: textfield;
+		}
+	</style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-slate-100">
+	<div id="app" class="min-h-screen flex items-center justify-center p-4">
+		<!-- Loading State -->
+		<div id="loadingScreen" class="hidden text-center">
+			<div class="inline-block">
+				<div class="text-6xl gradient-text mb-4 pulse-ring">💣</div>
+				<p class="text-2xl font-bold text-slate-100">Loading Angka Bom...</p>
+			</div>
+		</div>
+
+		<!-- Welcome Screen -->
+		<div id="welcomeScreen" class="w-full max-w-md slide-in hidden">
+			<div class="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-8 shadow-2xl border border-slate-700">
+				<div class="text-center mb-8">
+					<div class="text-7xl mb-4 inline-block pulse-ring">💣</div>
+					<h1 class="text-4xl font-bold gradient-text mb-2">Angka Bom</h1>
+					<p class="text-slate-400">Tebak angka rahasiaku</p>
+				</div>
+
+				<div class="space-y-4 mb-8">
+					<p class="text-slate-300 text-center text-sm leading-relaxed">
+						Pilih tingkat kesulitan dan mulai menebak. Setiap tebakan akan memberi tahu apakah angka rahasiaku lebih tinggi atau lebih rendah!
+					</p>
+				</div>
+
+				<div class="space-y-3 mb-8">
+					<button onclick="startGame('easy')" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
+						🟢 Mudah (0-50)
+					</button>
+					<button onclick="startGame('medium')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
+						🟡 Sedang (0-100)
+					</button>
+					<button onclick="startGame('hard')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
+						🔴 Sulit (0-200)
+					</button>
+				</div>
+
+				<div id="statsDisplay" class="bg-slate-700 rounded-lg p-4 text-center">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<p class="text-slate-400 text-sm">Games</p>
+							<p class="text-2xl font-bold text-slate-100" id="totalGames">0</p>
+						</div>
+						<div>
+							<p class="text-slate-400 text-sm">Best Score</p>
+							<p class="text-2xl font-bold text-slate-100" id="bestScore">-</p>
+						</div>
+					</div>
+					<button onclick="clearStats()" class="mt-4 text-xs text-slate-400 hover:text-slate-200 transition">Reset Statistics</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Game Screen -->
+		<div id="gameScreen" class="w-full max-w-md hidden slide-in">
+			<div class="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-8 shadow-2xl border border-slate-700">
+				<!-- Header -->
+				<div class="text-center mb-8">
+					<div class="inline-block mb-4">
+						<span class="text-5xl" id="difficultyEmoji">🟡</span>
+					</div>
+					<h1 class="text-3xl font-bold text-slate-100 mb-2">Tebak Angka</h1>
+					<p class="text-slate-400" id="rangeDisplay">0 - 100</p>
+				</div>
+
+				<!-- Game Info -->
+				<div class="grid grid-cols-3 gap-3 mb-8">
+					<div class="bg-slate-700 rounded-lg p-3 text-center">
+						<p class="text-slate-400 text-xs mb-1">Percobaan</p>
+						<p class="text-2xl font-bold text-slate-100" id="attempts">0</p>
+					</div>
+					<div class="bg-slate-700 rounded-lg p-3 text-center">
+						<p class="text-slate-400 text-xs mb-1">Rentang</p>
+						<p class="text-xl font-bold text-slate-100" id="rangeSize">100</p>
+					</div>
+					<div class="bg-slate-700 rounded-lg p-3 text-center">
+						<p class="text-slate-400 text-xs mb-1">Hints</p>
+						<p class="text-2xl font-bold text-slate-100" id="hintsRemaining">3</p>
+					</div>
+				</div>
+
+				<!-- Feedback Message -->
+				<div id="feedbackBox" class="mb-6 min-h-12 flex items-center justify-center">
+					<p class="text-slate-400 text-center text-sm">Masukkan angka untuk memulai</p>
+				</div>
+
+				<!-- Input Section -->
+				<div class="space-y-4 mb-6">
+					<div class="flex gap-2">
+						<input 
+							type="number" 
+							id="guessInput" 
+							placeholder="Masukkan angka..." 
+							class="flex-1 bg-slate-700 border border-slate-600 text-white placeholder-slate-500 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition"
+							onkeypress="handleKeyPress(event)"
+						/>
+						<button onclick="submitGuess()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition transform hover:scale-105 active:scale-95">
+							Cek
+						</button>
+					</div>
+
+					<button onclick="useHint()" id="hintBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
+						💡 Gunakan Hint
+					</button>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex gap-3">
+					<button onclick="giveUp()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition">
+						Menyerah
+					</button>
+					<button onclick="goHome()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition">
+						Home
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Game Over Screen -->
+		<div id="gameOverScreen" class="w-full max-w-md hidden slide-in">
+			<div class="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-8 shadow-2xl border border-slate-700">
+				<div class="text-center mb-8">
+					<div class="text-7xl mb-4" id="resultEmoji">🎉</div>
+					<h1 class="text-3xl font-bold gradient-text mb-2" id="resultTitle">Selamat!</h1>
+					<p class="text-slate-400" id="resultMessage">Kamu berhasil menebak angka!</p>
+				</div>
+
+				<!-- Result Details -->
+				<div class="bg-slate-700 rounded-lg p-6 mb-8 space-y-3">
+					<div class="flex justify-between items-center">
+						<span class="text-slate-400">Angka Rahasia:</span>
+						<span class="text-2xl font-bold gradient-text" id="revealedNumber">50</span>
+					</div>
+					<div class="flex justify-between items-center">
+						<span class="text-slate-400">Percobaan:</span>
+						<span class="text-2xl font-bold text-slate-100" id="finalAttempts">5</span>
+					</div>
+					<div class="flex justify-between items-center">
+						<span class="text-slate-400">Tingkat Kesulitan:</span>
+						<span class="text-2xl font-bold text-slate-100" id="finalDifficulty">Sedang</span>
+					</div>
+					<div id="newRecordBox" class="hidden pt-3 border-t border-slate-600">
+						<p class="text-center text-yellow-400 font-bold">⭐ REKOR BARU! ⭐</p>
+					</div>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="space-y-3">
+					<button onclick="startGame(currentDifficulty)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-95">
+						Mainkan Lagi
+					</button>
+					<button onclick="goHome()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition">
+						Home
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		let gameState = {
+			min: 0,
+			max: 100,
+			hiddenNumber: 0,
+			attempts: 0,
+			difficulty: 'medium',
+			hints: 3,
+			maxHints: 3,
+			gameActive: false,
+			hintsUsed: []
+		};
+
+		let currentDifficulty = 'medium';
+		let stats = {
+			totalGames: 0,
+			bestScore: null
+		};
+
+		// Load stats from localStorage
+		function loadStats() {
+			const saved = localStorage.getItem('angkaBomStats');
+			if (saved) {
+				stats = JSON.parse(saved);
+			}
+			updateStatsDisplay();
+		}
+
+		// Save stats to localStorage
+		function saveStats() {
+			localStorage.setItem('angkaBomStats', JSON.stringify(stats));
+		}
+
+		// Update stats display
+		function updateStatsDisplay() {
+			document.getElementById('totalGames').textContent = stats.totalGames;
+			document.getElementById('bestScore').textContent = stats.bestScore === null ? '-' : stats.bestScore;
+		}
+
+		// Clear stats
+		function clearStats() {
+			if (confirm('Yakin ingin reset semua statistik?')) {
+				stats = { totalGames: 0, bestScore: null };
+				saveStats();
+				updateStatsDisplay();
+			}
+		}
+
+		// Start game
+		function startGame(difficulty) {
+			currentDifficulty = difficulty;
+			gameState.difficulty = difficulty;
+			gameState.attempts = 0;
+			gameState.hints = 3;
+			gameState.maxHints = 3;
+			gameState.hintsUsed = [];
+			gameState.gameActive = true;
+
+			// Set difficulty parameters
+			if (difficulty === 'easy') {
+				gameState.min = 0;
+				gameState.max = 50;
+				document.getElementById('difficultyEmoji').textContent = '🟢';
+			} else if (difficulty === 'medium') {
+				gameState.min = 0;
+				gameState.max = 100;
+				document.getElementById('difficultyEmoji').textContent = '🟡';
+			} else if (difficulty === 'hard') {
+				gameState.min = 0;
+				gameState.max = 200;
+				document.getElementById('difficultyEmoji').textContent = '🔴';
 			}
 
-			window.alert(`💣💣💣 Angka bom adalah ${hiddenNumber} 💣💣💣`);
-		</script>
-	</body>
+			gameState.hiddenNumber = Math.floor(Math.random() * (gameState.max - gameState.min + 1)) + gameState.min;
+
+			// Update UI
+			document.getElementById('rangeDisplay').textContent = `${gameState.min} - ${gameState.max}`;
+			document.getElementById('rangeSize').textContent = gameState.max - gameState.min;
+			document.getElementById('attempts').textContent = '0';
+			document.getElementById('hintsRemaining').textContent = '3';
+			document.getElementById('guessInput').value = '';
+			document.getElementById('feedbackBox').innerHTML = '<p class="text-slate-400 text-center text-sm">Masukkan angka untuk memulai</p>';
+			document.getElementById('guessInput').focus();
+
+			// Switch screens
+			showScreen('gameScreen');
+		}
+
+		// Submit guess
+		function submitGuess() {
+			const input = document.getElementById('guessInput').value.trim();
+			const guess = parseFloat(input);
+
+			// Validation
+			if (!input) {
+				showFeedback('Masukkan angka terlebih dahulu!', 'warning');
+				document.getElementById('guessInput').classList.add('shake');
+				setTimeout(() => document.getElementById('guessInput').classList.remove('shake'), 500);
+				return;
+			}
+
+			if (!Number.isInteger(guess)) {
+				showFeedback('Hanya angka bulat yang diizinkan!', 'warning');
+				document.getElementById('guessInput').classList.add('shake');
+				setTimeout(() => document.getElementById('guessInput').classList.remove('shake'), 500);
+				return;
+			}
+
+			if (guess < gameState.min || guess > gameState.max) {
+				showFeedback(`Angka harus antara ${gameState.min} dan ${gameState.max}!`, 'warning');
+				document.getElementById('guessInput').classList.add('shake');
+				setTimeout(() => document.getElementById('guessInput').classList.remove('shake'), 500);
+				return;
+			}
+
+			gameState.attempts++;
+			document.getElementById('attempts').textContent = gameState.attempts;
+
+			if (guess === gameState.hiddenNumber) {
+				endGame(true);
+			} else if (guess < gameState.hiddenNumber) {
+				gameState.min = Math.max(gameState.min, guess);
+				showFeedback(`📈 Angka rahasia lebih tinggi!`, 'higher');
+				document.getElementById('rangeDisplay').textContent = `${gameState.min} - ${gameState.max}`;
+				document.getElementById('rangeSize').textContent = gameState.max - gameState.min;
+			} else {
+				gameState.max = Math.min(gameState.max, guess);
+				showFeedback(`📉 Angka rahasia lebih rendah!`, 'lower');
+				document.getElementById('rangeDisplay').textContent = `${gameState.min} - ${gameState.max}`;
+				document.getElementById('rangeSize').textContent = gameState.max - gameState.min;
+			}
+
+			document.getElementById('guessInput').value = '';
+			document.getElementById('guessInput').focus();
+		}
+
+		// Show feedback
+		function showFeedback(message, type) {
+			const feedbackBox = document.getElementById('feedbackBox');
+			feedbackBox.innerHTML = '';
+
+			let bgColor = 'bg-slate-700';
+			let textColor = 'text-slate-100';
+
+			if (type === 'warning') {
+				bgColor = 'bg-red-900/50 border border-red-500';
+				textColor = 'text-red-200';
+			} else if (type === 'higher') {
+				bgColor = 'bg-green-900/50 border border-green-500';
+				textColor = 'text-green-200';
+			} else if (type === 'lower') {
+				bgColor = 'bg-blue-900/50 border border-blue-500';
+				textColor = 'text-blue-200';
+			}
+
+			feedbackBox.innerHTML = `<div class="w-full ${bgColor} ${textColor} rounded-lg p-3 text-center font-semibold fade-in">${message}</div>`;
+		}
+
+		// Use hint
+		function useHint() {
+			if (gameState.hints <= 0) {
+				showFeedback('Tidak ada lagi hint!', 'warning');
+				return;
+			}
+
+			const difference = gameState.hiddenNumber - gameState.min;
+			const range = gameState.max - gameState.min;
+			let hint = '';
+
+			if (gameState.hintsUsed.length === 0) {
+				hint = `Angka terletak di ${gameState.min < gameState.hiddenNumber ? 'setengah atas' : 'setengah bawah'} dari ${gameState.min}-${gameState.max}`;
+			} else if (gameState.hintsUsed.length === 1) {
+				hint = `Angka lebih dekat ke ${Math.abs(gameState.hiddenNumber - gameState.min) < Math.abs(gameState.max - gameState.hiddenNumber) ? gameState.min : gameState.max}`;
+			} else {
+				hint = `Angka adalah ${gameState.hiddenNumber % 2 === 0 ? 'genap' : 'ganjil'}`;
+			}
+
+			gameState.hints--;
+			gameState.hintsUsed.push(hint);
+			document.getElementById('hintsRemaining').textContent = gameState.hints;
+
+			showFeedback(`💡 Hint: ${hint}`, 'info');
+
+			if (gameState.hints <= 0) {
+				document.getElementById('hintBtn').disabled = true;
+			}
+		}
+
+		// Give up
+		function giveUp() {
+			if (confirm('Yakin ingin menyerah? Angka rahasianya adalah ' + gameState.hiddenNumber)) {
+				endGame(false);
+			}
+		}
+
+		// End game
+		function endGame(won) {
+			gameState.gameActive = false;
+
+			// Update stats
+			stats.totalGames++;
+			if (stats.bestScore === null || gameState.attempts < stats.bestScore) {
+				stats.bestScore = gameState.attempts;
+				document.getElementById('newRecordBox').classList.remove('hidden');
+			} else {
+				document.getElementById('newRecordBox').classList.add('hidden');
+			}
+			saveStats();
+
+			// Update result screen
+			if (won) {
+				document.getElementById('resultEmoji').textContent = '🎉';
+				document.getElementById('resultTitle').textContent = 'Selamat!';
+				document.getElementById('resultMessage').textContent = `Kamu berhasil menebak angka dalam ${gameState.attempts} percobaan!`;
+			} else {
+				document.getElementById('resultEmoji').textContent = '😢';
+				document.getElementById('resultTitle').textContent = 'Game Over';
+				document.getElementById('resultMessage').textContent = 'Jangan khawatir, coba lagi!';
+			}
+
+			document.getElementById('revealedNumber').textContent = gameState.hiddenNumber;
+			document.getElementById('finalAttempts').textContent = gameState.attempts;
+
+			const diffNames = { easy: 'Mudah', medium: 'Sedang', hard: 'Sulit' };
+			document.getElementById('finalDifficulty').textContent = diffNames[gameState.difficulty];
+
+			showScreen('gameOverScreen');
+		}
+
+		// Go home
+		function goHome() {
+			gameState.gameActive = false;
+			showScreen('welcomeScreen');
+		}
+
+		// Handle key press
+		function handleKeyPress(event) {
+			if (event.key === 'Enter') {
+				submitGuess();
+			}
+		}
+
+		// Show screen
+		function showScreen(screenId) {
+			document.getElementById('welcomeScreen').classList.add('hidden');
+			document.getElementById('gameScreen').classList.add('hidden');
+			document.getElementById('gameOverScreen').classList.add('hidden');
+			document.getElementById('loadingScreen').classList.add('hidden');
+
+			document.getElementById(screenId).classList.remove('hidden');
+		}
+
+		// Initialize
+		loadStats();
+		showScreen('welcomeScreen');
+	</script>
+</body>
 </html>
